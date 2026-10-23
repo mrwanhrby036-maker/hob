@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>قلوب | موقع التعارف والصداقة</title>
+  <meta name="description" content="قلوب — أجمل مكان للتعارف وبناء الصداقات">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/png" href="https://i.ibb.co/Pskh7h3h/heart.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- ============ شاشة تسجيل الدخول / إنشاء حساب ============ -->
+  <div id="authScreen" class="auth-screen">
+    <div class="hearts-bg" id="heartsBg"></div>
+
+    <div class="auth-card">
+      <img src="https://i.ibb.co/0pg24CPJ/hero.png" alt="شخصيات قلوب" class="auth-hero">
+      <div class="auth-logo">
+        <img src="https://i.ibb.co/Pskh7h3h/heart.png" alt="" class="logo-heart-img">
+        <h1>قلوب</h1>
+        <p>أجمل مكان للتعارف وبناء الصداقات</p>
+      </div>
+
+      <div class="auth-tabs">
+        <button id="showLogin" class="auth-tab active">تسجيل الدخول</button>
+        <button id="showRegister" class="auth-tab">حساب جديد</button>
+      </div>
+
+      <button type="button" id="googleBtn" class="google-btn">
+        <svg class="g-logo" viewBox="0 0 24 24" aria-hidden="true">
+          <path fill="#4285F4" d="M23.49 12.27c0-.79-.07-1.54-.19-2.27H12v4.51h6.47c-.29 1.48-1.14 2.73-2.4 3.58v3h3.86c2.26-2.09 3.56-5.17 3.56-8.82z"/>
+          <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.86-3c-1.08.72-2.45 1.16-4.07 1.16-3.13 0-5.78-2.11-6.73-4.96H1.29v3.09C3.26 21.3 7.31 24 12 24z"/>
+          <path fill="#FBBC05" d="M5.27 14.29c-.25-.72-.38-1.49-.38-2.29s.14-1.57.38-2.29V6.62H1.29C.47 8.24 0 10.06 0 12s.47 3.76 1.29 5.38l3.98-3.09z"/>
+          <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.26 2.7 1.29 6.62l3.98 3.09C6.22 6.86 8.87 4.75 12 4.75z"/>
+        </svg>
+        المتابعة بحساب جوجل
+      </button>
+      <div class="divider"><span>أو بالإيميل</span></div>
+
+      <!-- تسجيل الدخول -->
+      <form id="loginForm" class="auth-form" autocomplete="on">
+        <label>البريد الإلكتروني</label>
+        <input type="email" id="loginEmail" placeholder="example@mail.com" required>
+        <label>كلمة المرور</label>
+        <input type="password" id="loginPassword" placeholder="••••••••" required>
+        <button type="submit" class="primary-btn" id="loginBtn">دخول</button>
+        <button type="button" id="forgotBtn" class="link-btn">نسيت كلمة المرور؟</button>
+      </form>
+
+      <!-- إنشاء حساب -->
+      <form id="registerForm" class="auth-form hidden" autocomplete="on">
+        <label>الاسم (هيظهر للأعضاء)</label>
+        <input type="text" id="regName" placeholder="اكتب اسمك" maxlength="30" required>
+
+        <label>البريد الإلكتروني</label>
+        <input type="email" id="regEmail" placeholder="example@mail.com" required>
+
+        <label>كلمة المرور</label>
+        <input type="password" id="regPassword" placeholder="6 حروف على الأقل" minlength="6" required>
+
+        <div class="row-2">
+          <div>
+            <label>السن</label>
+            <input type="number" id="regAge" placeholder="18+" min="18" max="99" required>
+          </div>
+          <div>
+            <label>المدينة</label>
+            <select id="regCity" required></select>
+          </div>
+        </div>
+
+        <label>النوع</label>
+        <div class="gender-pick">
+          <label class="gender-opt male">
+            <input type="radio" name="gender" value="male" required>
+            <span>ولد</span>
+          </label>
+          <label class="gender-opt female">
+            <input type="radio" name="gender" value="female">
+            <span>بنت</span>
+          </label>
+        </div>
+
+        <label>اختار شخصيتك</label>
+        <div class="avatars" id="regAvatars"></div>
+
+        <label class="check-line">
+          <input type="checkbox" id="regAdult" required>
+          <span>أؤكد أن عمري 18 سنة أو أكثر، وأوافق على الاحترام المتبادل بين الأعضاء</span>
+        </label>
+
+        <button type="submit" class="primary-btn" id="registerBtn">إنشاء الحساب</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ============ التطبيق ============ -->
+  <div id="appScreen" class="app-screen hidden">
+
+    <header class="app-header">
+      <div class="logo"><img src="https://i.ibb.co/Pskh7h3h/heart.png" alt="" class="logo-img"> قلوب</div>
+      <div class="header-info">
+        <span id="onlineCount" class="online-pill"><i class="online-dot-inline"></i> 0 متصل</span>
+        <button id="myChip" class="my-chip" title="حسابي">
+          <span class="chip-avatar"><img id="myChipAvatarImg" src="https://i.ibb.co/GDXbyVc/m1.png" alt=""></span>
+          <span id="myChipName"></span>
+        </button>
+        <button id="logoutBtn" class="logout-btn">
+          <svg class="ic" viewBox="0 0 24 24"><path d="M10.09 15.59L11.5 17l5-5-5-5-1.41 1.41L12.67 11H3v2h9.67l-2.58 2.59zM19 3H5c-1.11 0-2 .9-2 2v4h2V5h14v14H5v-4H3v4c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/></svg>
+          خروج
+        </button>
+      </div>
+    </header>
+
+    <nav class="app-nav" id="appNav">
+      <button data-tab="public" class="nav-btn active">
+        <svg class="ic" viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg>
+        <span>الشات العام</span>
+      </button>
+      <button data-tab="members" class="nav-btn">
+        <svg class="ic" viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
+        <span>الأعضاء</span>
+      </button>
+      <button data-tab="likes" class="nav-btn">
+        <svg class="ic" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+        <span>الإعجابات</span>
+      </button>
+      <button data-tab="chats" class="nav-btn">
+        <svg class="ic" viewBox="0 0 24 24"><path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>
+        <span>رسائلي</span>
+        <b id="msgsBadge" class="badge hidden"></b>
+      </button>
+      <button data-tab="profile" class="nav-btn">
+        <svg class="ic" viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+        <span>حسابي</span>
+      </button>
+    </nav>
+
+    <main class="app-main">
+
+      <!-- الشات العام -->
+      <section id="tab-public" class="tab-section active">
+        <div class="panel chat-panel">
+          <div class="panel-head">
+            <h2>الشات العام</h2>
+            <p>اتعرف على كل الأعضاء في مكان واحد</p>
+          </div>
+          <div id="publicMessages" class="messages-area"></div>
+          <form id="publicForm" class="chat-input-bar">
+            <input id="publicInput" type="text" placeholder="اكتب رسالتك هنا..." maxlength="500" autocomplete="off">
+            <button type="submit" class="send-btn">
+              <svg class="ic rtl-flip" viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+              إرسال
+            </button>
+          </form>
+        </div>
+      </section>
+
+      <!-- الأعضاء -->
+      <section id="tab-members" class="tab-section">
+        <div class="members-controls panel">
+          <div class="search-wrap">
+            <svg class="ic" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+            <input id="memberSearch" type="text" placeholder="ابحث بالاسم...">
+          </div>
+          <div class="filter-btns" id="memberFilters">
+            <button data-g="all" class="chip active">الكل</button>
+            <button data-g="female" class="chip">بنات</button>
+            <button data-g="male" class="chip">ولاد</button>
+            <button data-g="online" class="chip">المتصلين الآن</button>
+          </div>
+        </div>
+        <div id="membersGrid" class="members-grid"></div>
+      </section>
+
+      <!-- الإعجابات -->
+      <section id="tab-likes" class="tab-section">
+        <div class="panel">
+          <h2 class="section-title">الماتشات (إعجاب متبادل)</h2>
+          <div id="matchesRow" class="h-scroll"></div>
+        </div>
+        <div class="panel">
+          <h2 class="section-title">معجبين بيك</h2>
+          <div id="likedMeGrid" class="members-grid"></div>
+        </div>
+        <div class="panel">
+          <h2 class="section-title">إنت عامل إعجاب لـ</h2>
+          <div id="myLikesGrid" class="members-grid"></div>
+        </div>
+      </section>
+
+      <!-- الرسائل الخاصة -->
+      <section id="tab-chats" class="tab-section">
+        <div class="chats-layout" id="chatsLayout">
+          <aside class="chats-list-pane panel">
+            <h2 class="pane-title">رسائلي</h2>
+            <div id="chatsList" class="chats-list"></div>
+          </aside>
+          <div class="conversation-pane panel" id="conversationPane">
+            <div class="conv-empty" id="convEmpty">
+              <svg class="ic big-ic" viewBox="0 0 24 24"><path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>
+              <p>اختار محادثة من القايمة<br>أو ابدأ شات جديد من صفحة الأعضاء</p>
+            </div>
+            <div class="conv-content hidden" id="convContent">
+              <div class="conv-header">
+                <button id="backToList" class="back-btn" title="رجوع">
+                  <svg class="ic" viewBox="0 0 24 24"><path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z"/></svg>
+                </button>
+                <div id="convAvatar" class="avatar sm female"></div>
+                <div class="conv-meta">
+                  <div id="convName" class="conv-name">...</div>
+                  <div id="convStatus" class="status-text"></div>
+                </div>
+              </div>
+              <div id="convMessages" class="messages-area"></div>
+              <form id="convForm" class="chat-input-bar">
+                <input id="convInput" type="text" placeholder="اكتب رسالة خاصة..." maxlength="1000" autocomplete="off">
+                <button type="submit" class="send-btn">
+                  <svg class="ic rtl-flip" viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+                  إرسال
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- حسابي -->
+      <section id="tab-profile" class="tab-section">
+        <form id="profileForm" class="panel profile-panel">
+          <h2 class="section-title">ملفي الشخصي</h2>
+          <p class="muted-line">الإيميل: <b id="profileEmail"></b></p>
+
+          <label>الاسم</label>
+          <input type="text" id="profileName" maxlength="30" required>
+
+          <div class="row-2">
+            <div>
+              <label>السن</label>
+              <input type="number" id="profileAge" min="18" max="99" required>
+            </div>
+            <div>
+              <label>المدينة</label>
+              <select id="profileCity" required></select>
+            </div>
+          </div>
+
+          <label>النوع</label>
+          <div class="gender-pick">
+            <label class="gender-opt male">
+              <input type="radio" name="profileGender" id="pGenderMale" value="male" required>
+              <span>ولد</span>
+            </label>
+            <label class="gender-opt female">
+              <input type="radio" name="profileGender" id="pGenderFemale" value="female">
+              <span>بنت</span>
+            </label>
+          </div>
+
+          <label>شخصيتك</label>
+          <div class="avatars" id="profileAvatars"></div>
+
+          <label>نبذة عنك (تظهر في ملفك)</label>
+          <textarea id="profileBio" rows="3" maxlength="300" placeholder="اكتب حاجة لطيفة عن نفسك..."></textarea>
+
+          <button type="submit" class="primary-btn" id="saveProfileBtn">حفظ التعديلات</button>
+        </form>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- ============ إكمال الملف بعد أول دخول بجوجل ============ -->
+  <div id="completeModal" class="modal-overlay hidden">
+    <div class="modal-card">
+      <div class="profile-view">
+        <h3 class="modal-title">آخر خطوة قبل ما تبدأ</h3>
+        <p class="muted-line center-text">كمّل بياناتك عشان الأعضاء يتعرفوا عليك</p>
+        <div id="cpAvatarPreview" class="cp-avatar"></div>
+        <p class="cp-note" id="cpNote"></p>
+      </div>
+      <form id="completeForm" class="auth-form">
+        <label>الاسم</label>
+        <input type="text" id="cpName" maxlength="30" required>
+
+        <div class="row-2">
+          <div>
+            <label>السن</label>
+            <input type="number" id="cpAge" placeholder="18+" min="18" max="99" required>
+          </div>
+          <div>
+            <label>المدينة</label>
+            <select id="cpCity" required></select>
+          </div>
+        </div>
+
+        <label>النوع</label>
+        <div class="gender-pick">
+          <label class="gender-opt male">
+            <input type="radio" name="cpGender" value="male" required>
+            <span>ولد</span>
+          </label>
+          <label class="gender-opt female">
+            <input type="radio" name="cpGender" value="female">
+            <span>بنت</span>
+          </label>
+        </div>
+
+        <label class="check-line">
+          <input type="checkbox" id="cpAdult" required>
+          <span>أؤكد أن عمري 18 سنة أو أكثر، وأوافق على الاحترام المتبادل بين الأعضاء</span>
+        </label>
+
+        <button type="submit" class="primary-btn" id="cpBtn">ابدأ الآن</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ============ نافذة عرض الملف الشخصي ============ -->
+  <div id="profileModal" class="modal-overlay hidden">
+    <div class="modal-card">
+      <button class="modal-close" id="modalClose" title="إغلاق">
+        <svg class="ic" viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+      </button>
+      <div id="modalBody"></div>
+    </div>
+  </div>
+
+  <!-- ============ تحذير إعدادات فايربيز ============ -->
+  <div id="setupWarning" class="setup-warning hidden">
+    <button class="modal-close" id="setupClose" title="إغلاق">
+      <svg class="ic" viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+    </button>
+    <h3>
+      <svg class="ic warn-ic" viewBox="0 0 24 24"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/></svg>
+      محتاج تكمل إعدادات Firebase
+    </h3>
+    <ol>
+      <li>افتح <b>Firebase Console</b> ثم <b>Authentication</b> ثم <b>Sign-in method</b> وفعّل <b>Email/Password</b> وأيضًا <b>Google</b></li>
+      <li>افتح <b>Realtime Database</b> ثم <b>Rules</b> والصق القواعد دي واضغط <b>Publish</b>:
+        <pre>{ "rules": { ".read": "auth != null", ".write": "auth != null" } }</pre>
+      </li>
+      <li>لدخول جوجل: من <b>Authentication</b> ثم <b>Settings</b> ثم <b>Authorized domains</b> ضيف الدومين اللي بتفتح منه الموقع</li>
+      <li>ارجع حدّث الصفحة هنا</li>
+    </ol>
+  </div>
+
+  <div id="toastContainer" class="toast-container"></div>
+
+  <script type="module" src="script.js"></script>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a4f183cb1db1e28a',t:'MTc5Mjc2NjYxNA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
