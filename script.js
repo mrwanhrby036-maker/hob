@@ -145,40 +145,173 @@ function toast(msg, type = '') {
 function showSetupWarning() { $('setupWarning').classList.remove('hidden'); }
 $('setupClose').addEventListener('click', () => $('setupWarning').classList.add('hidden'));
 
-function handleError(err) {
-  console.error(err);
-  const code = err?.code || '';
-  const map = {
-    'auth/invalid-email': 'الإيميل ده مش صحيح',
-    'auth/user-not-found': 'مفيش حساب بالإيميل ده — اعمل حساب جديد',
-    'auth/wrong-password': 'كلمة المرور غلط، حاول تاني',
-    'auth/invalid-credential': 'بيانات الدخول غير صحيحة',
-    'auth/email-already-in-use': 'الإيميل ده مسجل قبل كده — سجل دخولك',
-    'auth/weak-password': 'كلمة المرور لازم تكون 6 حروف على الأقل',
-    'auth/too-many-requests': 'محاولات كتيرة — استنى شوية وحاول تاني',
-    'auth/network-request-failed': 'مشكلة في الاتصال بالإنترنت',
-    'auth/user-disabled': 'الحساب ده متوقف',
-    'auth/popup-closed-by-user': 'قفلت نافذة جوجل قبل إتمام الدخول',
-    'auth/popup-blocked': 'المتصفح منع النافذة المنبثقة — اسمح بالنوافذ وجرب تاني',
-    'auth/account-exists-with-different-credential': 'الإيميل ده مسجل بطريقة تانية — سجل دخولك بالإيميل وكلمة المرور',
-  };
+/* الوضع ده للمطوّر بس (أول ما الموقع بيفتح من الجهاز) — عشان نشوف تفاصيل الإعدادات.
+   أي زائر عادي عمره ما يشوف أكواد فايربيز ولا القواعد. */
+const IS_DEV = /^(localhost|127\.0\.0\.1|0\.0\.0\.0)$/.test(location.hostname)
+  || location.protocol === 'file:';
+
+/* تنضيف أي رسالة قبل ما نوصلها للمستخدم:
+   نمنع ظهور أكواد فايربيز ولا أسماء القواعد ولا تفاصيل سيرفر */
+function sanitize(raw) {
+  let s = String(raw || '');
+  s = s.replace(/\b[a-z]+\/[a-z0-9-]+\b/gi, '');   // auth/xxx أو database/xxx
+  s = s.replace(/\s+/g, ' ').trim();
+  if (!s || /[{}";=<]/.test(s) || s.length < 4 || s.length > 110) return '';
+  // أي كلام تقني داخلي (أخطاء جافاسكريبت، روابط، مسارات قواعد) ما يظهرش أبدًا
+  if (/undefined|null\b|TypeError|ReferenceError|Cannot read|at position|Error:|https?:|\.(json|js)\b/i.test(s)) return '';
+  return s;
+}
+
+/* هل الخطأ ده سببه إعدادات/قواعد فايربيز؟ */
+function isSetupIssue(code, raw) {
+  return code === 'PERMISSION_DENIED' ||
+    code === 'permission-denied' ||
+    code === 'auth/unauthorized-domain' ||
+    code === 'auth/operation-not-allowed' ||
+    code === 'auth/configuration-not-found' ||
+    code === 'auth/admin-restricted-operation' ||
+    /permission[_ -]denied|\.write rule|\.read rule/i.test(code + ' ' + raw);
+}
+
+const ERR_MSG = {
+  /* —— تسجيل الدخول —— */
+  'auth/invalid-email': 'الإيميل اللي كتبته مش صحيح — تأكد منه وحاول تاني',
+  'auth/user-disabled': 'الحساب ده متوقف — كلّم إدارة الموقع',
+  'auth/user-not-found': 'الإيميل أو كلمة المرور غير صحيحة',
+  'auth/wrong-password': 'الإيميل أو كلمة المرور غير صحيحة',
+  'auth/invalid-credential': 'الإيميل أو كلمة المرور غير صحيحة',
+  'auth/too-many-requests': 'محاولات كتيرة ورا بعض — استنى شوية وحاول تاني',
+  'auth/network-request-failed': 'مشكلة في الاتصال بالإنترنت — جرب تاني',
+  /* —— إنشاء حساب —— */
+  'auth/email-already-in-use': 'الإيميل ده مسجّل قبل كده — سجّل دخولك أو استعد كلمة المرور',
+  'auth/weak-password': 'كلمة المرور ضعيفة — خليها 6 حروف على الأقل',
+  'auth/missing-password': 'اكتب كلمة المرور الأول',
+  /* —— جوجل —— */
+  'auth/popup-closed-by-user': 'قفلت نافذة جوجل قبل ما تخلص الدخول',
+  'auth/popup-blocked': 'المتصفح منع النافذة المنبثقة — اسمح بالنوافذ من إعدادات المتصفح وجرب تاني',
+  'auth/cancelled-popup-request': '',
+  'auth/account-exists-with-different-credential': 'الإيميل ده مسجّل بطريقة تانية — سجّل دخولك بالإيميل وكلمة المرور',
+  /* —— استعادة كلمة المرور —— */
+  'auth/missing-email': 'اكتب إيميلك الأول',
+  'auth/quota-exceeded': 'عدد المحاولات خلص — استنى شوية وحاول تاني',
+  'auth/invalid-action-code': 'اللينك ده منتهي أو مستخدم قبل كده — اطلب لينك جديد',
+  'auth/expired-action-code': 'اللينك ده منتهي — اطلب لينك جديد'
+};
+
+/* رسالة واحدة ثابتة لكل حاجة مش متوقعة — مفيش أي تفاصيل تقنية بتظهر للزائر */
+const GENERIC_ERROR = 'حصل خطأ غير متوقع — حاول تاني بعد شوية';
+
+/* أي خطأ لازم يمر من هنا: التفاصيل الكاملة في الـ console للمطوّر بس */
+function handleError(err, opts = {}) {
+  const code = String(err?.code || err?.name || '');
+  const raw = String(err?.message || '');
+  if (IS_DEV) console.warn('[qolob]', code, raw, err);
+
+  // حاجة مقصودة من المستخدم (قفل نافذة جوجل مثلاً) — نسكت خالص
   if (code === 'auth/cancelled-popup-request') return;
-  if (code === 'auth/unauthorized-domain') {
-    showSetupWarning();
-    toast(`الدومين "${location.hostname}" مش مصرح بيه في Firebase — ضيفه من Authentication ثم Settings ثم Authorized domains`, 'error');
+
+  // مشكلة إعدادات (طرق الدخول مش متفعّلة / الدومين مش مصرح بيه / قواعد الداتابيز)
+  // الفحص ده قبل أي حاجة تانية عشان ميتلخبطش مع رسالة عامة
+  if (isSetupIssue(code, raw)) {
+    if (IS_DEV) {
+      showSetupWarning();
+      toast('في إعدادات ناقصة في Firebase — شوف صندوق التحذير فوق', 'error');
+    } else {
+      toast('فيه مشكلة تقنية في الموقع دلوقتي — جرب تاني بعد شوية', 'error');
+    }
     return;
   }
-  if (code === 'auth/operation-not-allowed' || code === 'PERMISSION_DENIED' || code === 'auth/configuration-not-found') {
-    showSetupWarning();
-    toast('محتاج تكمّل إعدادات Firebase الأول', 'error');
+
+  // الأخطاء المعروفة برسائل جاهزة وآمنة
+  const msg = ERR_MSG[code];
+  if (msg) { toast(msg, 'error'); return; }
+
+  // مشكلة شبكة
+  if (code === 'auth/network-request-failed' || (typeof navigator !== 'undefined' && navigator.onLine === false)) {
+    toast('اتصال الإنترنت ضعيف — اتأكد من الشبكة وحاول تاني', 'error');
     return;
   }
-  if (String(err?.message || '').includes('PERMISSION_DENIED')) {
-    showSetupWarning();
-    toast('قاعدة البيانات رافضة الكتابة — عدّل القواعد (Rules)', 'error');
-    return;
-  }
-  toast(map[code] || `حدث خطأ: ${code || err?.message || 'غير معروف'}`, 'error');
+
+  const fallback = opts.fallback || sanitize(raw);
+  toast(fallback || GENERIC_ERROR, 'error');
+}
+
+/* =====================================================
+   الوضع الليلي / النهاري
+   ===================================================== */
+const THEME_KEY = 'qolob_theme';
+
+function readStoredTheme() {
+  try { return localStorage.getItem(THEME_KEY) || 'auto'; } catch (_) { return 'auto'; }
+}
+
+function applyTheme(mode) {
+  const systemDark = !!(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  const dark = mode === 'dark' || (mode !== 'light' && systemDark);
+  const html = document.documentElement;
+  html.setAttribute('data-theme', dark ? 'dark' : 'light');
+  html.style.colorScheme = dark ? 'dark' : 'light';
+  // لون شريط المتصفح على الموبايل يمشي مع الثيم
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute('content', dark ? '#150910' : '#ff5c8a');
+  const label = dark ? 'التحويل للوضع النهاري' : 'التحويل للوضع الليلي';
+  document.querySelectorAll('.theme-toggle, .theme-fab').forEach(btn => {
+    btn.setAttribute('title', label);
+    btn.setAttribute('aria-label', label);
+    btn.setAttribute('aria-pressed', dark ? 'true' : 'false');
+  });
+}
+
+function toggleTheme() {
+  const dark = document.documentElement.getAttribute('data-theme') === 'dark';
+  const next = dark ? 'light' : 'dark';
+  try { localStorage.setItem(THEME_KEY, next); } catch (_) {}
+  applyTheme(next);
+}
+
+applyTheme(readStoredTheme());
+['themeBtn', 'authThemeBtn', 'fabTheme'].forEach(id => {
+  const b = $(id);
+  if (b) b.addEventListener('click', toggleTheme);
+});
+// لو المستخدم غيّر ثيم نظامه وإحنا على "auto"
+if (window.matchMedia) {
+  const mq = window.matchMedia('(prefers-color-scheme: dark)');
+  const onSys = () => applyTheme(readStoredTheme());
+  if (mq.addEventListener) mq.addEventListener('change', onSys);
+  else if (mq.addListener) mq.addListener(onSys);
+}
+
+/* =====================================================
+   شاشة التحميل
+   ===================================================== */
+function hideLoader() {
+  const l = $('loader');
+  if (l) l.classList.add('gone');
+}
+function showLoadFail() {
+  const l = $('loader');
+  if (!l) return;
+  l.querySelector('p:not(.loader-fail)')?.classList.add('hidden');
+  l.querySelector('.loader-fail')?.classList.remove('hidden');
+}
+// لو الشبكة قطعت أو السكربت مقدرش يتحمّل، نقول للمستخدم بدل شاشة فاضية
+setTimeout(() => {
+  if (!$('authScreen').classList.contains('hidden')) showLoadFail();
+}, 12000);
+
+/* =====================================================
+   كيبورد الموبايل: نرفع القايمة السفلية فوق الكيبورد
+   عشان مربع الكتابة ما يختفيش وإنت بتكتب
+   ===================================================== */
+if (window.visualViewport) {
+  const onVp = () => {
+    const kb = Math.max(0, Math.round(window.innerHeight - window.visualViewport.height));
+    document.documentElement.style.setProperty('--kbd', kb > 60 ? kb + 'px' : '0px');
+  };
+  window.visualViewport.addEventListener('resize', onVp);
+  window.visualViewport.addEventListener('scroll', onVp);
+  window.addEventListener('orientationchange', onVp);
 }
 
 /* =====================================================
@@ -263,10 +396,14 @@ $('showRegister').addEventListener('click', () => {
 
 $('loginForm').addEventListener('submit', async (e) => {
   e.preventDefault();
+  const email = $('loginEmail').value.trim();
+  const pass = $('loginPassword').value;
+  if (!validEmail(email)) return toast('اكتب إيميل صحيح الأول (مثال: name@mail.com)', 'error');
+  if (!pass) return toast('اكتب كلمة المرور', 'error');
   const btn = $('loginBtn');
   btn.disabled = true; btn.textContent = 'جاري الدخول...';
   try {
-    await signInWithEmailAndPassword(auth, $('loginEmail').value.trim(), $('loginPassword').value);
+    await signInWithEmailAndPassword(auth, email, pass);
   } catch (err) {
     handleError(err);
   } finally {
@@ -284,6 +421,8 @@ $('registerForm').addEventListener('submit', async (e) => {
   const gender = document.querySelector('input[name="gender"]:checked')?.value;
 
   if (name.length < 2) return toast('اكتب اسم صحيح (حرفين على الأقل)', 'error');
+  if (!validEmail(email)) return toast('اكتب إيميل صحيح (مثال: name@mail.com)', 'error');
+  if (!pass || pass.length < 6) return toast('كلمة المرور لازم تكون 6 حروف على الأقل', 'error');
   if (!age || age < 18 || age > 99) return toast('السن لازم يكون بين 18 و 99', 'error');
   if (!gender) return toast('اختار النوع: ولد أو بنت', 'error');
 
@@ -307,13 +446,76 @@ $('registerForm').addEventListener('submit', async (e) => {
   }
 });
 
-$('forgotBtn').addEventListener('click', async () => {
-  const email = $('loginEmail').value.trim();
-  if (!email) return toast('اكتب إيميلك الأول وبعدها اضغط "نسيت كلمة المرور"', 'error');
+/* =====================================================
+   نسيت كلمة المرور — بيبعت لينك استعادة على الإيميل
+   ===================================================== */
+const FORGET_COOLDOWN_KEY = 'qolob_forgot_ts';
+
+function validEmail(v) { return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v); }
+
+function openForgot() {
+  const prefill = $('loginEmail').value.trim();
+  $('forgotEmail').value = prefill;
+  $('forgotModal').classList.remove('hidden');
+  if (prefill) $('forgotSendBtn').focus(); else $('forgotEmail').focus();
+}
+function closeForgot() { $('forgotModal').classList.add('hidden'); }
+
+$('forgotBtn').addEventListener('click', openForgot);
+$('forgotClose').addEventListener('click', closeForgot);
+$('forgotCancelBtn').addEventListener('click', closeForgot);
+$('forgotModal').addEventListener('click', (e) => { if (e.target === $('forgotModal')) closeForgot(); });
+
+$('forgotForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const email = $('forgotEmail').value.trim();
+  if (!validEmail(email)) return toast('اكتب إيميل صحيح الأول (مثال: name@mail.com)', 'error');
+
+  // منع السبام: طلب واحد كل 60 ثانية من نفس الجهاز
+  let last = 0;
+  try { last = parseInt(localStorage.getItem(FORGET_COOLDOWN_KEY) || '0', 10) || 0; } catch (_) {}
+  const wait = Math.ceil((60000 - (Date.now() - last)) / 1000);
+  if (wait > 0) return toast(`استنى ${wait} ثانية وبعدين اطلب تاني`, 'error');
+
+  const btn = $('forgotSendBtn');
+  btn.disabled = true;
+  const old = btn.textContent;
+  btn.textContent = 'جاري الإرسال...';
   try {
     await sendPasswordResetEmail(auth, email);
-    toast('بعنالك رابط إعادة تعيين كلمة المرور على إيميلك', 'success');
-  } catch (err) { handleError(err); }
+    try { localStorage.setItem(FORGET_COOLDOWN_KEY, String(Date.now())); } catch (_) {}
+    // نفس الرسالة سواء الإيميل موجود أو لأ — عشان محدش يقدر يكتشف حسابات الناس
+    toast('لو فيه حساب مسجل بالإيميل ده، هيوصلك لينك تغيير كلمة المرور خلال دقايق', 'success');
+    closeForgot();
+  } catch (err) {
+    handleError(err, { fallback: 'مقدرناش نبعت اللينك دلوقتي — حاول تاني بعد شوية' });
+  } finally {
+    btn.disabled = false;
+    btn.textContent = old;
+  }
+});
+
+/* =====================================================
+   إظهار / إخفاء كلمة المرور (مهم على الموبايل)
+   ===================================================== */
+document.querySelectorAll('.pass-eye').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const input = $(btn.dataset.target);
+    if (!input) return;
+    const show = input.type === 'password';
+    input.type = show ? 'text' : 'password';
+    btn.classList.toggle('on', show);
+    btn.setAttribute('aria-label', show ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور');
+  });
+});
+
+/* =====================================================
+   إغلاق النوافذ بزر الرجوع في الكيبورد
+   ===================================================== */
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape') return;
+  if (!$('forgotModal').classList.contains('hidden')) return closeForgot();
+  if (!$('profileModal').classList.contains('hidden')) return closeModal();
 });
 
 $('logoutBtn').addEventListener('click', async () => {
@@ -337,6 +539,7 @@ $('googleBtn').addEventListener('click', async () => {
    مراقبة حالة الدخول
    ===================================================== */
 onAuthStateChanged(auth, async (user) => {
+  hideLoader();
   if (user) {
     state.user = user;
     const profileReady = await ensureProfile(user);
@@ -949,4 +1152,16 @@ $('profileForm').addEventListener('submit', async (e) => {
     toast('تم حفظ بياناتك بنجاح', 'success');
   } catch (err) { handleError(err); }
   finally { btn.disabled = false; btn.textContent = 'حفظ التعديلات'; }
+});
+
+/* =====================================================
+   شبكة أمان أخيرة: أي خطأ غير متوقع يظهر برسالة عامة
+   (من غير ما نكشف تفاصيل تقنية للزائر)
+   ===================================================== */
+window.addEventListener('error', (e) => {
+  if (IS_DEV) console.error('[qolob] uncaught', e.error || e.message);
+});
+window.addEventListener('unhandledrejection', (e) => {
+  if (e.reason && (e.reason.code || e.reason.message)) return handleError(e.reason);
+  if (IS_DEV) console.error('[qolob] unhandled rejection', e.reason);
 });
