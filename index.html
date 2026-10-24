@@ -164,9 +164,9 @@
     </header>
 
     <nav class="app-nav" id="appNav">
-      <button data-tab="public" class="nav-btn active">
-        <svg class="ic" viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg>
-        <span>الشات العام</span>
+      <button data-tab="home" class="nav-btn active">
+        <svg class="ic" viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+        <span>الرئيسية</span>
       </button>
       <button data-tab="members" class="nav-btn">
         <svg class="ic" viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
@@ -189,17 +189,50 @@
 
     <main class="app-main">
 
-      <!-- الشات العام -->
-      <section id="tab-public" class="tab-section active">
-        <div class="panel chat-panel">
-          <div class="panel-head">
-            <h2>الشات العام</h2>
-            <p>اتعرف على كل الأعضاء في مكان واحد</p>
+      <!-- الصفحة الرئيسية - الغرف -->
+      <section id="tab-home" class="tab-section active">
+        <div class="home-hero panel">
+          <div class="hero-content">
+            <h1>أهلاً بيك في قلوب 👋</h1>
+            <p>اختار غرفة ودردش مع أصدقاء جدد أو اعمل غرفتك الخاصة</p>
+            <button id="openCreateRoom" class="primary-btn create-room-trigger">
+              <svg class="ic" viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+              إنشاء غرفة جديدة
+            </button>
           </div>
-          <div id="publicMessages" class="messages-area"></div>
-          <form id="publicForm" class="chat-input-bar">
-            <label for="publicInput" class="visually-hidden">اكتب رسالتك في الشات العام</label>
-            <input id="publicInput" type="text" placeholder="اكتب رسالتك هنا..." maxlength="500" autocomplete="off" enterkeyhint="send">
+          <img src="https://i.ibb.co/0pg24CPJ/hero.png" alt="" class="hero-img-home">
+        </div>
+
+        <div class="rooms-container">
+          <div class="section-header">
+            <h2 class="section-title">الغرف المتاحة</h2>
+            <div id="roomCount" class="room-count">0 غرفة</div>
+          </div>
+          <div id="roomsGrid" class="rooms-grid">
+            <div class="loader-inline"><p>جاري تحميل الغرف...</p></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- غرفة الشات (تظهر لما تدخل غرفة) -->
+      <section id="tab-room-chat" class="tab-section">
+        <div class="panel chat-panel room-chat-panel">
+          <div class="panel-head room-head">
+            <button id="leaveRoom" class="back-btn-room" title="خروج من الغرفة">
+              <svg class="ic" viewBox="0 0 24 24"><path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z"/></svg>
+            </button>
+            <div class="room-info">
+              <h2 id="currentRoomName">اسم الغرفة</h2>
+              <p id="currentRoomDesc">وصف الغرفة...</p>
+            </div>
+            <div class="room-meta-info">
+              <span id="roomOnlineCount" class="room-online-pill"><i class="online-dot-inline"></i> 0</span>
+            </div>
+          </div>
+          <div id="roomMessages" class="messages-area"></div>
+          <form id="roomForm" class="chat-input-bar">
+            <label for="roomInput" class="visually-hidden">اكتب رسالتك في الغرفة</label>
+            <input id="roomInput" type="text" placeholder="اكتب رسالتك هنا..." maxlength="500" autocomplete="off" enterkeyhint="send">
             <button type="submit" class="send-btn" aria-label="إرسال">
               <svg class="ic rtl-flip" viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
               إرسال
@@ -400,6 +433,26 @@
         </form>
         <p class="forgot-hint">ملحوظة أمان: عشان نحافظ على خصوصيتك مش بنقول إذا كان الإيميل مسجل عندنا ولا لأ. لو الإيميل صحيح هيوصلك اللينك في خلال دقايق — لو ملقتوش بص في فولدر السبام.</p>
       </div>
+    </div>
+  </div>
+
+  <!-- ============ نافذة إنشاء غرفة ============ -->
+  <div id="createRoomModal" class="modal-overlay hidden">
+    <div class="modal-card">
+      <button class="modal-close" id="createRoomClose" title="إغلاق">
+        <svg class="ic" viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+      </button>
+      <h3 class="modal-title">إنشاء غرفة جديدة</h3>
+      <p class="muted-line">اعمل غرفتك وجمّع فيها أصدقائك</p>
+      <form id="createRoomForm" class="auth-form">
+        <label for="roomName">اسم الغرفة</label>
+        <input type="text" id="roomName" placeholder="مثلاً: قعدة صحاب" maxlength="30" required>
+        
+        <label for="roomDesc">وصف الغرفة (اختياري)</label>
+        <textarea id="roomDesc" placeholder="عن إيه الغرفة دي؟" rows="2" maxlength="100"></textarea>
+        
+        <button type="submit" class="primary-btn" id="createRoomBtn">إنشاء الغرفة ودخول</button>
+      </form>
     </div>
   </div>
 

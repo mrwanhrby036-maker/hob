@@ -74,6 +74,8 @@ const state = {
   likesReceived: {},    // uid -> ts  (عملي لايك)
   userChats: {},        // chatId -> meta
   activeChat: null,     // { chatId, withUid }
+  activeRoom: null,     // { roomId, meta }
+  rooms: {},            // roomId -> meta
   memberFilter: 'all',
   searchText: '',
   regAvatar: 'm1',
@@ -82,6 +84,8 @@ const state = {
 };
 const unsubs = [];           // دوال إلغاء المستمعين
 let chatMsgsUnsub = null;    // مستمع رسائل المحادثة المفتوحة
+let roomMsgsUnsub = null;    // مستمع رسائل الغرفة المفتوحة
+let roomOnlineUnsub = null;  // مستمع المتصلين في الغرفة المفتوحة
 
 /* ---------- اختصارات ---------- */
 const $ = (id) => document.getElementById(id);
@@ -699,11 +703,10 @@ function subscribeAll() {
     renderChatsList();
   }, handleError));
 
-  // 5) الشات العام
-  $('publicMessages').innerHTML = '';
-  const publicQ = query(ref(db, 'publicMessages'), limitToLast(150));
-  unsubs.push(onChildAdded(publicQ, (snap) => {
-    appendPublicMessage(snap.val());
+  // 5) الغرف
+  unsubs.push(onValue(ref(db, 'rooms'), (snap) => {
+    state.rooms = snap.val() || {};
+    renderRooms();
   }, handleError));
 }
 
@@ -711,11 +714,14 @@ function cleanupAll() {
   unsubs.forEach(u => { try { u(); } catch (_) {} });
   unsubs.length = 0;
   if (chatMsgsUnsub) { try { chatMsgsUnsub(); } catch (_) {} chatMsgsUnsub = null; }
+  if (roomMsgsUnsub) { try { roomMsgsUnsub(); } catch (_) {} roomMsgsUnsub = null; }
+  if (roomOnlineUnsub) { try { roomOnlineUnsub(); } catch (_) {} roomOnlineUnsub = null; }
   Object.assign(state, {
     user: null, users: {}, likesGiven: {}, likesReceived: {},
-    userChats: {}, activeChat: null, likesListenerReady: false
+    userChats: {}, activeChat: null, activeRoom: null, rooms: {}, likesListenerReady: false
   });
-  $('publicMessages').innerHTML = '';
+  $('roomsGrid').innerHTML = '';
+  $('roomMessages').innerHTML = '';
   $('chatsList').innerHTML = '';
   $('msgsBadge').classList.add('hidden');
   $('completeModal').classList.add('hidden');
@@ -744,6 +750,7 @@ $('appNav').addEventListener('click', (e) => {
 function switchTab(tab) {
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
   document.querySelectorAll('.tab-section').forEach(s => s.classList.toggle('active', s.id === 'tab-' + tab));
+  if (tab === 'home') renderRooms();
   if (tab === 'members') renderMembers();
   if (tab === 'likes') renderLikes();
   if (tab === 'chats') { renderChatsList(); }
@@ -753,17 +760,125 @@ function switchTab(tab) {
 $('myChip').addEventListener('click', () => switchTab('profile'));
 
 /* =====================================================
-   الشات العام
+   الغرف - الصفحة الرئيسية
    ===================================================== */
-$('publicForm').addEventListener('submit', async (e) => {
+$('openCreateRoom').addEventListener('click', () => {
+  $('createRoomModal').classList.remove('hidden');
+  $('roomName').focus();
+});
+$('createRoomClose').addEventListener('click', () => $('createRoomModal').classList.add('hidden'));
+
+$('createRoomForm').addEventListener('submit', async (e) => {
   e.preventDefault();
-  const input = $('publicInput');
+  const name = $('roomName').value.trim();
+  const desc = $('roomDesc').value.trim();
+  if (name.length < 2) return toast('اسم الغرفة قصير جداً', 'error');
+
+  const btn = $('createRoomBtn');
+  btn.disabled = true; btn.textContent = 'جاري الإنشاء...';
+  try {
+    const roomRef = push(ref(db, 'rooms'));
+    const roomId = roomRef.key;
+    const roomData = {
+      name, desc,
+      creator: me(),
+      createdAt: serverTimestamp()
+    };
+    await set(roomRef, roomData);
+    $('createRoomModal').classList.add('hidden');
+    $('createRoomForm').reset();
+    toast('تم إنشاء الغرفة بنجاح', 'success');
+    joinRoom(roomId, roomData);
+  } catch (err) { handleError(err); }
+  finally { btn.disabled = false; btn.textContent = 'إنشاء الغرفة ودخول'; }
+});
+
+function renderRooms() {
+  const grid = $('roomsGrid');
+  const list = Object.entries(state.rooms)
+    .map(([id, r]) => ({ id, ...r }))
+    .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+
+  $('roomCount').textContent = `${list.length} غرفة`;
+
+  if (!list.length) {
+    grid.innerHTML = `<div class="empty-msg"><svg class="ic big-ic" viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg><p>لسه مفيش غرف.. اعمل أول غرفة دلوقتي!</p></div>`;
+    return;
+  }
+
+  grid.innerHTML = list.map(r => `
+    <div class="room-card" data-roomid="${r.id}">
+      <div class="room-card-head">
+        <h3>${escapeHtml(r.name)}</h3>
+      </div>
+      <p class="room-card-desc">${escapeHtml(r.desc || 'لا يوجد وصف لهذه الغرفة')}</p>
+      <div class="room-card-footer">
+        <button class="primary-btn join-room-btn">دخول الغرفة</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+$('roomsGrid').addEventListener('click', (e) => {
+  const btn = e.target.closest('.join-room-btn');
+  if (!btn) return;
+  const roomId = btn.closest('.room-card')?.dataset.roomid;
+  if (roomId) joinRoom(roomId);
+});
+
+/* =====================================================
+   شات الغرفة
+   ===================================================== */
+async function joinRoom(roomId, roomData = null) {
+  const room = roomData || state.rooms[roomId];
+  if (!room) return;
+  state.activeRoom = { roomId, ...room };
+  
+  switchTab('room-chat');
+  $('currentRoomName').textContent = room.name;
+  $('currentRoomDesc').textContent = room.desc || '';
+  $('roomMessages').innerHTML = '';
+
+  // تحديث الحضور في الغرفة
+  const roomOnlineRef = ref(db, `rooms/${roomId}/online/${me()}`);
+  set(roomOnlineRef, true).catch(() => {});
+  onDisconnect(roomOnlineRef).remove();
+
+  // مستمع المتصلين في الغرفة
+  if (roomOnlineUnsub) roomOnlineUnsub();
+  roomOnlineUnsub = onValue(ref(db, `rooms/${roomId}/online`), (snap) => {
+    const count = snap.exists() ? Object.keys(snap.val()).length : 0;
+    $('roomOnlineCount').innerHTML = `<i class="online-dot-inline"></i> ${count}`;
+  });
+
+  // مستمع الرسائل
+  if (roomMsgsUnsub) roomMsgsUnsub();
+  const q = query(ref(db, `roomMessages/${roomId}`), limitToLast(150));
+  roomMsgsUnsub = onChildAdded(q, (snap) => {
+    appendRoomMessage(snap.val());
+  }, handleError);
+}
+
+$('leaveRoom').addEventListener('click', () => {
+  if (state.activeRoom) {
+    remove(ref(db, `rooms/${state.activeRoom.roomId}/online/${me()}`));
+  }
+  state.activeRoom = null;
+  if (roomMsgsUnsub) roomMsgsUnsub();
+  if (roomOnlineUnsub) roomOnlineUnsub();
+  switchTab('home');
+});
+
+$('roomForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const input = $('roomInput');
   const text = input.value.trim();
-  if (!text) return;
+  if (!text || !state.activeRoom) return;
   const u = userOf(me());
+  const roomId = state.activeRoom.roomId;
   input.value = '';
   try {
-    const msgRef = push(ref(db, 'publicMessages'));
+    const msgRef = push(ref(db, `roomMessages/${roomId}`));
     await set(msgRef, {
       uid: me(),
       name: u?.name || 'عضو',
@@ -774,8 +889,8 @@ $('publicForm').addEventListener('submit', async (e) => {
   } catch (err) { handleError(err); }
 });
 
-function appendPublicMessage(m) {
-  const box = $('publicMessages');
+function appendRoomMessage(m) {
+  const box = $('roomMessages');
   const isMine = m.uid === me();
   const gender = m.gender === 'female' ? 'female' : 'male';
   const el = document.createElement('div');
@@ -786,13 +901,11 @@ function appendPublicMessage(m) {
     <div class="msg-time">${fmtTime(m.ts || Date.now())}</div>
   `;
   box.appendChild(el);
-  // قص الرسايل القديمة من الشاشة
   while (box.children.length > 200) box.removeChild(box.firstChild);
   box.scrollTop = box.scrollHeight;
 }
 
-// الضغط على اسم عضو في الشات العام يفتح ملفه
-$('publicMessages').addEventListener('click', (e) => {
+$('roomMessages').addEventListener('click', (e) => {
   const t = e.target.closest('[data-viewuid]');
   if (t) openProfileModal(t.dataset.viewuid);
 });
